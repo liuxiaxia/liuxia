@@ -1,0 +1,174 @@
+/*对输入学生选修课程的学习情况包括：学号、学生姓名、课程名称、成绩，所在系别、
+   授课教师姓名，完成输出：将每门课程的成绩由高到低排序输出；计算每个学生所有
+   选修课程的平均成绩，并由高到低排序输出*/
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+/*
+ *课程链表中结点的定义
+ */
+typedef struct course
+{
+	char cour[30];
+	int score;
+	char teacher[10];
+	struct course *next;
+}COURSE;
+/*
+ *学生链表中结点的定义
+ */
+typedef struct student
+{
+	int num;
+	char name[10];
+	char dep[20];
+	float ave;
+	COURSE *link;
+	struct student *next;
+}STUDENT;
+/*
+ *从键盘输入信息并创建课程结点实例，分数为-1时，输入结束
+ *返回所创建的节点地址。若输入结束，返回NULL
+ */
+COURSE * createCourseNode()
+{
+	COURSE * p=(COURSE *)malloc(sizeof(COURSE));
+	printf("course=");
+	scanf("%s",p->cour);
+	printf("teacher=");
+	printf("%s",p->teacher);
+	printf("score=");
+	scanf("%d",&p->score);
+	if(p->score==-1)
+	{
+		free(p);
+		return NULL;
+	}
+	else return p;
+}
+/*
+ *在课程链表中插入一个学生所学的课程
+ *参数h：学生课程链表的头指针的地址；course：要插入的课程
+ */
+void insertCourseNode(COURSE **h,COURSE *course)
+{
+	COURSE *p,*q;
+	/*根据所插入课程的成绩和原来链表中课程的成绩进行比较由高到低排序*/
+	if (*h==NULL||course->score>=(*h)->score)
+	{
+		course->next=*h;
+		*h=course;
+	}
+	else
+	{ 
+		q=*h;p=q->next;
+		while(p!=NULL && course->score<p->score)
+		{
+			q=p;p=p->next;
+		}
+	}
+	/*
+	 *计算课程链表中课程分数的平均成绩
+	 *参数link：课程链表头的指针
+	 *返回链表中各门课的平均成绩
+	 */
+	float aver(COURSE *link)
+	{
+		int n=0,total=0;
+		while(link!=NULL)
+		{ 
+			total+=link->score;
+			/*n为所学课程的个数
+			 *total为所学课程的学分*/
+			 n++;
+			 link=link->next;
+		}
+		if(n)
+		{
+			return(float)(total/n);
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	/*
+	 *从键盘输入信息创建学生结点
+	 *返回所创建的结点
+	 */
+	STUDENT * createStudentNode()
+	{
+		COURSE *q;
+		STUDENT * p=(STUDENT *)malloc(sizeof(student));
+		printf("num=");
+		scanf("%d",&p->num);
+		printf("name=");
+		scanf("%s",p->name);
+		printf("dep=");
+		scanf("%s",p->dep);
+		p->link=NULL;
+		/*输入所学课程的学分
+		 *若为'0'则结束*/
+		while((q=createCourseNode())!=NULL)
+		{ 
+			insertCourseNode(&(p->link),q);
+		}
+		/*计算课程的平均成绩*/
+		p->ave =aver(p->link);
+		return p;
+	}
+	/*
+	 *在学生链表中插入学生信息
+	 *参数h：学生链表头指针的地址；stu：待插入的学生结点的指针
+	 */
+}
+void insertStudentNode(STUDENT **h,STUDENT *stu)
+{
+	STUDENT *p,*q;
+    /*根据所插入学生所有选修课程的平均成绩和原来链表中所有学生的平均成绩进行比较，由高到低排序*/
+	if (*h==NULL||stu->ave>=(*h)->ave)
+	{
+		stu->next=*h;
+		*h=stu;
+	}
+	else
+	{
+		q=*h;p=q->next;
+		while(p!=NULL && stu->ave<p->ave)
+		{
+			q=p;p=p->next;
+		}
+		stu->next=p;q->next=stu;
+	}
+}
+int main(int argc, char * argv[])
+{
+	int n=0,i;
+	STUDENT *head=NULL,*ptr;
+	COUESE *p,*q;
+	printf("n=");
+	/*输入学生的个数*/
+	sacnf("%d",&n);
+	for(i=0;i<n;i++)
+	{
+		insertStudentNode(&head,createStudentNode());
+	}
+	/*打印输出结果*/
+	for (i=0;i<n;i++)
+	{
+		printf("%d%s%s%f\n",head->num,head->name,head->dep,head->ave);
+		p=head->link;
+		while(p!=NULL)
+		{
+			printf("%s %d %s\n",p->cour,p->score,p->teacher);
+			q=p;
+			p=p->next;
+			free(q);
+		}
+		ptr=head;
+		head=head->next;
+		free(ptr);
+	}
+	return 0;
+}
