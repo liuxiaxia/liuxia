@@ -1,0 +1,580 @@
+#include "1602_Lcd.h"
+#include "math.h"
+    void delay()
+{
+	int x,y;
+	for(x=0; x<=10; x++)
+	for(y=0; y<=2; y++);
+}
+
+    u8_char Converting(u8_char In_Date)
+{
+    return In_Date;
+}
+    void enable(u8_char del)
+{
+	P0 = Converting(del);
+	RS = 0;
+	RW = 0;
+	E = 0;
+	delay();
+	E = 1;
+	delay();
+}
+
+
+void write(u8_char del)
+{
+	P0 = Converting(del);
+	RS = 1;
+	RW = 0;
+	E = 0;
+	delay();
+	E = 1;
+	delay();
+}
+    void LCD_init(void)
+{
+	enable(01);
+	enable(56);
+	enable(12);
+	enable(06);
+	enable(208);
+}
+    void LCD_char(u8_char line,u8_char gqjh,char Si)
+{
+	u8_char c;
+	if(line == 1) c = 0x80;
+	if(line == 2) c = 0xc0;
+	c = c + gqjh - 1;
+	enable(c);
+	write(Si);
+}
+    void LCD_string(u8_char line,u8_char gqjh,u8_char *q)
+{
+	u8_char c;
+	if(line == 1) c = 0x80;
+	if(line == 2) c = 0xc0;
+	c = c + gqjh - 1;
+	enable(c);
+	while(1)
+	{
+		if(*q == '\0') break;
+		write(*q);
+		q++;
+	}
+}
+
+//整型温湿度数据显示用，共占用4位，其中一位为符号位
+void LCD_int(u8_char line, u8_char gqjh, int number)
+{
+   u16_int temper_x;
+   u16_int Ge_wei,Shi_wei,Bai_wei,Si;
+   if (number >= 0)
+   {
+      Si = 0;
+   }
+   else
+   {
+      Si = 1;
+   }
+   temper_x = abs(number);
+   Bai_wei = temper_x / 100;
+   temper_x = temper_x - Bai_wei*100;
+   Shi_wei = temper_x / 10;
+   Ge_wei = temper_x - Shi_wei*10;
+   number = abs(number);
+   if (number>=100)
+   {
+      if (Si == 1) //负数
+	  {
+	     LCD_char(line, gqjh, '-');
+	  }
+      LCD_char(line, gqjh+1, Bai_wei+48);  
+	  LCD_char(line, gqjh+2, Shi_wei+48);  
+	  LCD_char(line, gqjh+3, Ge_wei+48);  
+   }
+   else if (number>=10)
+   {
+      if (Si == 1)	   
+	  {
+	     LCD_char(line, gqjh+1, '-');
+	  }
+	  LCD_char(line, gqjh+2, Shi_wei+48);  
+      LCD_char(line, gqjh+3, Ge_wei+48);
+   }
+   else
+   {
+      if (Si == 1)	   
+	  {
+	     LCD_char(line, gqjh+2, '-');
+	  }
+      LCD_char(line, gqjh+3, Ge_wei+48);  
+   }
+}
+
+
+#include "dht.h"
+
+U8_char  U8_charFLAG,k;
+U8_char  U8_charcount,U8_chartemper;
+U8_char  U8_charT_data_H,U8_charT_data_L,U8_charRH_data_H,U8_charRH_data_L,U8_charcheckdata;
+U8_char  U8_charT_data_H_temper,U8_charT_data_L_temper,U8_charRH_data_H_temper,U8_charRH_data_L_temper,U8_charcheckdata_temper;
+U8_char  U8_charcomdata;
+U8_char  count, count_r=0;
+
+void Delay1(U16_int y)
+{
+    U8_char x;
+    for(;y>0;y--)
+    { 	
+		for(x=0;x<27;x++);
+    }
+}
+
+void  Delay_10us(void)
+{
+    U8_char x;
+    x--;
+    x--;
+    x--;
+    x--;
+    x--;
+    x--;
+}
+
+void  COM(void)
+{
+    U8_char x;
+    for(x=0;x<8;x++)	   
+    {
+  	    U8_charFLAG=2;
+	   	while((!DATA)&&U8_charFLAG++);
+		Delay_10us();
+		Delay_10us();
+		Delay_10us();
+  		U8_chartemper=0;
+        if(DATA)U8_chartemper=1;
+		    U8_charFLAG=2;
+		while((DATA)&&U8_charFLAG++);
+		  
+	   	if(U8_charFLAG==1)break;
+	 
+	   	   
+	   	 
+		U8_charcomdata<<=1;
+	   	U8_charcomdata|=U8_chartemper;        
+    }
+}
+
+
+//----以下变量均为全局变量--------
+//----温度高8位== U8_charT_data_H------
+//----温度低8位== U8_charT_data_L------
+//----湿度高8位== U8_charRH_data_H-----
+//----湿度低8位== U8_charRH_data_L-----
+//----校验 8位 == U8_charcheckdata-----
+//----调用相关子程序如下----------
+//---- Delay();, Delay_10us();,COM(); 
+//--------------------------------
+U8_char RH(void)
+{
+   
+    DATA=0;
+	Delay1(180); 
+	DATA=1;
+
+	Delay_10us();
+	Delay_10us();
+	Delay_10us();
+	Delay_10us();
+ 
+	DATA=1;
+	  
+	if(!DATA)			  
+	{
+	    U8_charFLAG=2;
+		 
+	    while((!DATA)&&U8_charFLAG++);
+	    U8_charFLAG=2;
+	  
+	    while((DATA)&&U8_charFLAG++);
+		 
+	    COM();
+	    U8_charRH_data_H_temper=U8_charcomdata;
+	    COM();
+	    U8_charRH_data_L_temper=U8_charcomdata;
+	    COM();
+	    U8_charT_data_H_temper=U8_charcomdata;
+	    COM();
+	    U8_charT_data_L_temper=U8_charcomdata;
+	    COM();
+	    U8_charcheckdata_temper=U8_charcomdata;
+	    DATA=1;
+
+	    U8_chartemper=(U8_charT_data_H_temper+U8_charT_data_L_temper+U8_charRH_data_H_temper+U8_charRH_data_L_temper);
+	    if(U8_chartemper==U8_charcheckdata_temper)
+	    {
+	   	   U8_charRH_data_H=U8_charRH_data_H_temper;
+	   	   U8_charRH_data_L=U8_charRH_data_L_temper;
+	   	   U8_charT_data_H=U8_charT_data_H_temper;
+	   	   U8_charT_data_L=U8_charT_data_L_temper;
+	   	   U8_charcheckdata=U8_charcheckdata_temper;
+	    }
+		return 1;
+	}
+	else   
+	{
+	   return 0;
+	}
+}
+
+
+#include "2402.h"
+
+
+void DELAY(unsigned int t)
+{
+	while(t!=0)
+	t--;
+}
+
+
+void IICStart(void)
+{
+     SCL=0;  
+ 	 DELAY(1);
+     SDA=1; SCL=1; DELAY(1);
+     SDA=0; DELAY(1);
+     SCL=0; 
+}
+
+void IICStop(void)
+{
+	 SDA=0;SCL=1; DELAY(1);
+     SDA=1; DELAY(1);
+     SCL=0; 	
+}
+void SEND0(void)
+{
+	SDA=0;
+	SCL=1;
+	DELAY(1);
+	SCL=0;
+}
+
+void SEND1(void)
+{
+	SDA=1;
+	DELAY(1);
+	SCL=1;
+	DELAY(1);
+	SCL=0;
+}
+
+bit Check_Ack(void)
+{
+   unsigned char errtime=250;
+   DELAY(1);
+   SCL=1; 
+   DELAY(1);
+   CY=SDA;
+   while(CY)
+   {
+    errtime--; 
+    CY=SDA;
+    if (!errtime)
+     {
+     IICStop();
+    
+     return 1;
+     }
+}
+ DELAY(1);
+ SCL=0; 
+ return 0;
+}
+
+
+void Write_byte(unsigned char dat) 
+{
+    unsigned char x;
+	for(x=0;x<8;x++)
+	{	
+		if((dat<<x)&0x80)
+		SEND1();
+		else
+		SEND0();
+	}
+}
+
+
+unsigned char Read_byte(void)
+{
+	unsigned char x,temp=0;     
+	for(x=0;x<8;x++)
+	{
+        SDA=1;
+	    SCL=1;
+	    DELAY(1);  
+		if(SDA==1)
+		{
+			temp=temp<<1;
+			temp=temp|0x01;
+		}
+		else
+			temp=temp<<1;
+		 SCL=0;	
+	  }
+	  return temp;
+}
+
+/************************************
+      EEPROM  DRIVE
+	  Addr:from 0x00-->
+*************************************/
+unsigned char rdeeprom(unsigned char addr)
+{ 
+        unsigned char temp=0;
+		bit flag=0;
+		IICStart();
+		Write_byte(0xa0);
+        Check_Ack();
+		Write_byte(addr);
+		Check_Ack();
+		IICStart();
+		Write_byte(0xa1);
+		Check_Ack();
+		temp=Read_byte();
+		SEND1();
+		IICStop();
+ 	    return temp;   
+}  
+    
+   
+void wrteeprom(unsigned char addr,unsigned char dat)
+{
+       	IICStart();
+		Write_byte(0xa0);
+		Check_Ack();
+		Write_byte(addr);
+		Check_Ack();
+		Write_byte(dat);
+		Check_Ack();
+		IICStop();
+}  
+
+
+#include <reg52.h>
+#include "1602_Lcd.h"
+#include "dht.h"
+#include "2402.h"
+
+sbit Led_qs=P1^6;		
+sbit Led_jw=P1^5;	
+sbit Led_sw=P1^4;		
+sbit Key_temper_H_1 = P3^2;
+sbit Key_temper_H_2 = P3^3;
+sbit Key_H_H_1 = P3^4;
+sbit Key_H_H_2 = P3^5;
+
+
+volatile bit Flag_Start_RH = 0;  
+volatile bit Flag_Key_Press = 0; 
+
+
+extern U8_char  U8_FLAG,k;
+extern U8_char  U8_count,U8_temper;
+extern U8_char  U8T_data_H,U8T_data_L,U8RH_data_H,U8RH_data_L,U8checkdata;
+extern U8_char  U8T_data_H_temper,U8T_data_L_temper,U8RH_data_H_temper,U8RH_data_L_temper,U8_check_data_temper;
+extern U8_char  U8_com_data;
+extern U8_char  count, count_r;
+
+U16_int temper;
+S16_int tempers, hum;
+S16_int idata temper_H, H_H;  
+char * pKeep;
+U8_char Key_value, key_temper_H1, key_temper_H2, key_H_H1, key_H_H2;
+U16_int RH_Counter;	  
+
+
+
+void Data_Init()																				  
+{
+   RH_Counter = 0;
+   Led_qs = 1;
+   Led_jw = 1;
+   Led_sw = 1;
+   temper_H = 40;
+   H_H = 85;
+   Key_value = 0;
+   key_temper_H1 = 1;
+   key_temper_H2 = 1;
+   key_H_H1 = 1;
+   key_H_H2 = 1;
+
+}
+
+
+void Timer0_Init()	 
+{
+	ET0 = 0x01;        
+	TMOD = 0x01;       
+	TL0 = 6;     
+	TH0 = 248;     
+	TR0 = 0x01;        
+}
+
+
+void Timer0_ISR (void) interrupt 1 using 0
+{
+	TL0 = 6;
+	TH0 = 248;     
+
+	
+    RH_Counter ++;
+    if (RH_Counter >= 1000)
+    {
+       Flag_Start_RH = 1;
+	   RH_Counter = 0;
+    }
+}
+
+
+void Keep_Setting()
+{
+   pKeep =  (char *)&temper_H;   
+   wrteeprom(0, *pKeep);	 
+   DELAY(500);
+   pKeep ++;
+   wrteeprom(1, *pKeep);	  
+   DELAY(500);
+   pKeep =  (char *)&H_H;
+   wrteeprom(2, *pKeep);	 
+   DELAY(500);
+   pKeep ++;
+   wrteeprom(3, *pKeep);	 
+   DELAY(500);
+
+}
+
+
+void Load_Setting()
+{
+   pKeep =  (char *)&temper_H;
+   *pKeep++ = rdeeprom(0);
+   *pKeep = rdeeprom(1);
+   pKeep = (char *)&H_H;
+   *pKeep++ = rdeeprom(2);
+   *pKeep = rdeeprom(3);
+   if ((temper_H>99)||(temper_H<0)) temper_H = 40;
+   if ((H_H>99)||(H_H<0)) H_H = 85;
+}
+
+void KeyProcess(U16_int num)
+{
+   switch (num)
+   {
+      case 1:
+	     if (temper_H<99) temper_H++;
+	     LCD_char(1, 15, temper_H/10+48);
+	     LCD_char(1, 16, temper_H%10+48);
+	     break;
+	  case 2:
+	     if (temper_H>1) temper_H--;
+	     LCD_char(1, 15, temper_H/10+48);
+	     LCD_char(1, 16, temper_H%10+48);
+	     break;
+	  case 3:
+	     if (H_H<99) H_H++;
+	     LCD_char(2, 15, H_H/10+48);
+	     LCD_char(2, 16, H_H%10+48);
+	     break;
+	  case 4:
+	     if (H_H>1) H_H--;
+	     LCD_char(2, 15, H_H/10+48);
+	     LCD_char(2, 16, H_H%10+48);
+	     break;
+	  default:
+	     break;
+   }
+   Keep_Setting();
+
+}
+
+void main()
+{
+    U16_int i, j, testnum;
+
+    EA = 0x00;
+
+	Timer0_Init();  
+
+    Data_Init();
+	EA = 1;
+
+	LCD_init();
+	LCD_string(1,1," Welcome to T&H   ");
+	LCD_string(2,1," Control System!  ");
+	
+	for (i=0;i<1000;i++)
+	   for (j=0;j<1000;j++)
+	   {;}
+    
+	LCD_string(1,1,"                ");
+	LCD_string(2,1,"                ");
+    LCD_string(1,1,"Tem:    C  temper_H:");
+	LCD_string(2,1,"Hum:    %  H_H:");
+    
+   
+	Load_Setting();
+	LCD_char(1, 15, temper_H/10+48);
+	LCD_char(1, 16, temper_H%10+48);
+	LCD_char(2, 15, H_H/10+48);
+	LCD_char(2, 16, H_H%10+48);
+
+
+	while(1)
+	{
+       
+		 if (Flag_Start_RH == 1)
+		 {
+		     TR0 = 0x00;
+             testnum = RH();
+ 			 Flag_Start_RH = 0;
+			 TR0 = 1;
+             
+			 hum = U8RH_data_H;
+			 tempers = U8T_data_H;
+ 			
+			 LCD_int(1,5,tempers);
+		     LCD_int(2,5,hum);	
+		}
+	
+		if (tempers > temper_H) Led_jw = 0;
+		else Led_jw = 1;		   
+		if (hum > H_H) Led_qs = 0;
+		else Led_qs = 1;			
+		 
+		
+		if ((Key_temper_H_1)&&(key_temper_H1==0)) {Flag_Key_Press = 1; Key_value = 1;}
+        else if ((Key_temper_H_2)&&(key_temper_H2==0)) {Flag_Key_Press = 1; Key_value = 2;}
+        else if ((Key_H_H_1)&&(key_H_H1==0)) {Flag_Key_Press = 1; Key_value = 3;}
+        else if ((Key_H_H_2)&&(key_H_H2==0)) {Flag_Key_Press = 1; Key_value = 4;}
+		if (Flag_Key_Press == 1)
+		{
+           KeyProcess(Key_value);
+           Flag_Key_Press = 0;           
+		}
+        if (!Key_temper_H_1) key_temper_H1 = 0;
+		else key_temper_H1 = 1;
+        if (!Key_temper_H_2) key_temper_H2 = 0;
+		else key_temper_H2 = 1;
+        if (!Key_H_H_1) key_H_H1 = 0;
+		else key_H_H1 = 1;
+        if (!Key_H_H_2) key_H_H2 = 0;
+		else key_H_H2 = 1;
+		 
+	}	
+}
+
